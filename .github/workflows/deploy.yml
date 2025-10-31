@@ -1,4 +1,4 @@
-name: 🚀 Auto-Deploy to EC2 (Port 80, Stable)
+name: 🚀 Auto-Deploy to EC2 (Stable, Port 80)
 
 on:
   push:
@@ -20,7 +20,6 @@ jobs:
           # Prepare app directory
           mkdir -p ~/app
           cp -f $GITHUB_WORKSPACE/app.py $GITHUB_WORKSPACE/Dockerfile ~/app/
-
           cd ~/app
 
           echo "🧱 Building Docker image..."
@@ -34,20 +33,30 @@ jobs:
           docker run -d -p 8082:8080 --name myflaskapp_new myflaskapp:latest
 
           echo "⏳ Health check for new container..."
+          HEALTH_OK=false
           for i in {1..20}; do
             if curl -fsS http://localhost:8082 >/dev/null; then
               echo "✅ New app is healthy!"
+              HEALTH_OK=true
               break
             fi
             sleep 1
           done
 
-          echo "🔥 Swapping old container with new one..."
-          docker rm -f myflaskapp 2>/dev/null || true
-          docker run -d -p 80:8080 --name myflaskapp myflaskapp:latest
-          docker rm -f myflaskapp_new 2>/dev/null || true
+          if [ "$HEALTH_OK" = true ]; then
+            echo "🔥 Swapping old container with new one..."
+            docker rm -f myflaskapp 2>/dev/null || true
+            docker run -d -p 80:8080 --name myflaskapp myflaskapp:latest
+            docker rm -f myflaskapp_new 2>/dev/null || true
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Health check failed. Keeping old version running."
+            docker rm -f myflaskapp_new 2>/dev/null || true
+            exit 1
+          fi
 
-          echo "🔍 Deployment complete. Current running containers:"
+          echo "🔍 Docker status:"
           docker ps
 
-          echo "🌍 App live at: http://16.16.185.223 or your AWS domain"
+          echo "🌍 App live at: http://16.16.185.223"
+          echo "🧠 Deployment finished."
