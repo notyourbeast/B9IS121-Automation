@@ -11,7 +11,8 @@ jobs:
       - name: Checkout latest code
         uses: actions/checkout@v4
 
-      - name: Zero-Downtime Deployment
+      - name: Deploy app with zero downtime
+        shell: bash
         run: |
           set -e
 
@@ -23,7 +24,7 @@ jobs:
           echo "🧱 Building new Docker image..."
           docker build -t myflaskapp:latest .
 
-          echo "🌍 Checking if old container is running..."
+          echo "🔍 Checking if old container exists..."
           if [ "$(docker ps -q -f name=myflaskapp)" ]; then
             echo "⚙️  Running new container temporarily on port 8081..."
             docker run -d -p 8081:8080 --name myflaskapp_new myflaskapp:latest
@@ -31,7 +32,7 @@ jobs:
             echo "⏳ Waiting 5 seconds for startup..."
             sleep 5
 
-            echo "🧠 Health check..."
+            echo "🧠 Health check on port 8081..."
             if curl -fsS http://localhost:8081 >/dev/null; then
               echo "✅ New container healthy. Replacing old one..."
               docker stop myflaskapp
