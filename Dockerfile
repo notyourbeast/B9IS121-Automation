@@ -4,14 +4,14 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /app
 
-# Copy app file
+# Copy app code
 COPY app.py .
 
 # Install dependencies
-RUN pip install flask
+RUN pip install --no-cache-dir flask
 
-# Expose port 8080 for external access
+# Expose internal container port
 EXPOSE 8080
 
-# Run the Flask app
+# Run the Flask app (ensure it binds to 0.0.0.0)
 CMD ["python", "app.py"]
