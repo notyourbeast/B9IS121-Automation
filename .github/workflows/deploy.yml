@@ -11,42 +11,41 @@ jobs:
       - name: Checkout latest code
         uses: actions/checkout@v4
 
-      - name: Deploy app with zero downtime
+      - name: Build and deploy container
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
+          echo "🚀 Deploying on EC2…"
 
-          echo "🚀 Pulling latest code..."
-          cd ~/B9IS121-Automation
-          git fetch origin main
-          git reset --hard origin/main
+          # Prepare app directory
+          mkdir -p ~/app
+          cp -f $GITHUB_WORKSPACE/app.py $GITHUB_WORKSPACE/Dockerfile ~/app/
 
-          echo "🧱 Building new Docker image..."
+          cd ~/app
+
+          echo "🛠 Building Docker image..."
           docker build -t myflaskapp:latest .
 
-          echo "🔍 Checking if old container exists..."
-          if [ "$(docker ps -q -f name=myflaskapp)" ]; then
-            echo "⚙️  Running new container temporarily on port 8081..."
-            docker run -d -p 8081:8080 --name myflaskapp_new myflaskapp:latest
+          echo "🧹 Cleaning old containers..."
+          docker rm -f myflaskapp_new 2>/dev/null || true
+          docker image prune -f 2>/dev/null || true
 
-            echo "⏳ Waiting 5 seconds for startup..."
-            sleep 5
+          echo "⚙️  Running new container temporarily on port 8082..."
+          docker run -d -p 8082:8080 --name myflaskapp_new myflaskapp:latest
 
-            echo "🧠 Health check on port 8081..."
-            if curl -fsS http://localhost:8081 >/dev/null; then
-              echo "✅ New container healthy. Replacing old one..."
-              docker stop myflaskapp
-              docker rm myflaskapp
-              docker rename myflaskapp_new myflaskapp
-              echo "🔥 Swapped successfully with zero downtime!"
-            else
-              echo "❌ New build failed health check. Keeping old container."
-              docker stop myflaskapp_new
-              docker rm myflaskapp_new
+          echo "⏳ Waiting for app to be ready..."
+          for i in {1..20}; do
+            if curl -fsS http://localhost:8082/ >/dev/null; then
+              echo "✅ New app is healthy!"
+              break
             fi
-          else
-            echo "🧱 No old container found — starting new one on port 80..."
-            docker run -d -p 80:8080 --name myflaskapp myflaskapp:latest
-          fi
+            sleep 1
+          done
 
-          echo "✅ Deployment complete!"
+          echo "🔥 Swapping live container..."
+          docker rm -f myflaskapp 2>/dev/null || true
+          docker rename myflaskapp_new myflaskapp
+
+          echo "🔍 Docker status:"
+          docker ps
+
