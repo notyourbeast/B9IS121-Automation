@@ -15,28 +15,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           echo "🚀 Deploying on EC2…"
+
+          # Prepare app directory
           mkdir -p ~/app
-          cp -f app.py Dockerfile ~/app/
+          cp -f $GITHUB_WORKSPACE/app.py $GITHUB_WORKSPACE/Dockerfile ~/app/
 
           cd ~/app
+
+          echo "🛠 Building Docker image..."
           docker build -t myflaskapp:latest .
 
-            # stop and remove existing container if running
+          echo "🧹 Stopping and removing old container (if any)..."
+          docker rm -f myflaskapp || true
 
-          # run mapping host:80 -> container:8080 (public) and host:8080 -> container:8080 (optional)
-          docker run -d -p 8080:8080 --name myflaskapp:latest
+          echo "🪄 Starting new container..."
+          docker run -d -p 8080:8080 --name myflaskapp myflaskapp:latest
 
-          echo "⏳ Waiting for app to be ready…"
+          echo "⏳ Waiting for app to be ready..."
           for i in {1..20}; do
-            if curl -fsS http://localhost/ >/dev/null; then
-              echo "✅ App is up"
+            if curl -fsS http://localhost:8080/ >/dev/null; then
+              echo "✅ App is up!"
               break
             fi
             sleep 1
           done
 
-          # final check + show brief docker info
-          curl -fsS http://localhost/ | head -n1
+          echo "🔍 Docker container status:"
           docker ps
+
+          echo "🔗 Testing endpoint response:"
+          curl -fsS http://localhost:8080/ | head -n1
