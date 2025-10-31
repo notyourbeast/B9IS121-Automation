@@ -1,6 +1,9 @@
-FROM python:3.9-slim
+FROM python:3.10-slim
+
 WORKDIR /app
-COPY app.py /app 
-RUN pip install --no-cache-dir flask
+COPY app.py .
+
+RUN pip install flask
+
 EXPOSE 8080
 CMD ["python", "app.py"]
