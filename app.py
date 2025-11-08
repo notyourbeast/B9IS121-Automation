@@ -3,7 +3,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Docker container updated !"
+    return "Docker container Demo1 !"
 
 
 if __name__ == "__main__":
